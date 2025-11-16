@@ -6,6 +6,7 @@ import { MetricsDisplay } from "@/components/MetricsDisplay";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Mic, Type } from "lucide-react";
+import { toast } from "sonner";
 
 type Language = "en" | "he" | "ar";
 
@@ -41,31 +42,55 @@ const Index = () => {
     setIsProcessing(true);
     const startTime = Date.now();
 
-    // TODO: Send to backend for processing
-    // Simulated response for now
-    setTimeout(() => {
-      const mockData: VerificationData = {
-        transcript: "The Earth orbits around the Sun.",
-        verdict: "Supported",
-        explanation: "This claim is scientifically accurate. The Earth orbits the Sun in an elliptical path, completing one orbit approximately every 365.25 days.",
-        citations: [
-          {
-            title: "Solar System - Wikipedia",
-            snippet: "Earth orbits the Sun at an average distance of about 93 million miles (150 million kilometers)...",
-            url: "https://en.wikipedia.org/wiki/Solar_System",
-            confidence: 0.95
-          }
-        ]
-      };
+    try {
+      // Step 1: Transcribe audio
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+      formData.append('language', language);
+
+      const transcribeResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!transcribeResponse.ok) {
+        throw new Error('Transcription failed');
+      }
+
+      const { text } = await transcribeResponse.json();
+      console.log('Transcription:', text);
+
+      // Step 2: Verify claim
+      const verifyResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-claim`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ claim: text }),
+        }
+      );
+
+      if (!verifyResponse.ok) {
+        throw new Error('Verification failed');
+      }
+
+      const verificationData = await verifyResponse.json();
       
-      setVerificationData(mockData);
+      setVerificationData(verificationData);
       setMetrics({
         totalTime: Date.now() - startTime,
-        confidence: 0.95,
-        sourcesFound: 1
+        confidence: verificationData.confidence,
+        sourcesFound: verificationData.citations.length,
       });
+    } catch (error) {
+      console.error('Error processing voice:', error);
+      toast.error('Failed to process voice input');
+    } finally {
       setIsProcessing(false);
-    }, 2000);
+    }
   };
 
   const handleTextSubmit = async () => {
@@ -75,23 +100,34 @@ const Index = () => {
     setIsProcessing(true);
     const startTime = Date.now();
 
-    // TODO: Send to backend for processing
-    setTimeout(() => {
-      const mockData: VerificationData = {
-        transcript: textInput,
-        verdict: "Supported",
-        explanation: "Based on available evidence, this claim appears to be accurate.",
-        citations: []
-      };
+    try {
+      const verifyResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-claim`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ claim: textInput }),
+        }
+      );
+
+      if (!verifyResponse.ok) {
+        throw new Error('Verification failed');
+      }
+
+      const verificationData = await verifyResponse.json();
       
-      setVerificationData(mockData);
+      setVerificationData(verificationData);
       setMetrics({
         totalTime: Date.now() - startTime,
-        confidence: 0.85,
-        sourcesFound: 0
+        confidence: verificationData.confidence,
+        sourcesFound: verificationData.citations.length,
       });
+    } catch (error) {
+      console.error('Error processing text:', error);
+      toast.error('Failed to verify claim');
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
   return (
