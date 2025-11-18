@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Mic, Type } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Language = "en" | "he" | "ar";
 
@@ -48,36 +49,25 @@ const Index = () => {
       formData.append('audio', audioBlob);
       formData.append('language', language);
 
-      const transcribeResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
+      const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('transcribe', {
+        body: formData,
+      });
 
-      if (!transcribeResponse.ok) {
+      if (transcribeError) {
         throw new Error('Transcription failed');
       }
 
-      const { text } = await transcribeResponse.json();
+      const { text } = transcribeData;
       console.log('Transcription:', text);
 
       // Step 2: Verify claim
-      const verifyResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-claim`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ claim: text }),
-        }
-      );
+      const { data: verificationData, error: verifyError } = await supabase.functions.invoke('verify-claim', {
+        body: { claim: text },
+      });
 
-      if (!verifyResponse.ok) {
+      if (verifyError) {
         throw new Error('Verification failed');
       }
-
-      const verificationData = await verifyResponse.json();
       
       setVerificationData(verificationData);
       setMetrics({
@@ -101,20 +91,13 @@ const Index = () => {
     const startTime = Date.now();
 
     try {
-      const verifyResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-claim`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ claim: textInput }),
-        }
-      );
+      const { data: verificationData, error: verifyError } = await supabase.functions.invoke('verify-claim', {
+        body: { claim: textInput },
+      });
 
-      if (!verifyResponse.ok) {
+      if (verifyError) {
         throw new Error('Verification failed');
       }
-
-      const verificationData = await verifyResponse.json();
       
       setVerificationData(verificationData);
       setMetrics({
