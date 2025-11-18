@@ -115,21 +115,57 @@ serve(async (req) => {
       }
     ];
 
-    const systemPrompt = `You are a careful fact-checking assistant. Analyze the claim and evidence provided to determine if the claim is:
+    // Create language-specific prompts
+    const systemPrompts: Record<string, string> = {
+      en: `You are a careful fact-checking assistant. Analyze the claim and evidence provided to determine if the claim is:
 - "Supported": The evidence clearly supports the claim
 - "Refuted": The evidence contradicts the claim
 - "Not Enough Info": The evidence is insufficient to verify the claim
 
-Be objective, cite specific evidence, and express appropriate uncertainty when warranted. Never invent facts.`;
+Be objective, cite specific evidence, and express appropriate uncertainty when warranted. Never invent facts. Respond in English.`,
+      ar: `أنت مساعد دقيق في التحقق من الحقائق. قم بتحليل الادعاء والأدلة المقدمة لتحديد ما إذا كان الادعاء:
+- "Supported": الأدلة تدعم الادعاء بوضوح
+- "Refuted": الأدلة تتناقض مع الادعاء
+- "Not Enough Info": الأدلة غير كافية للتحقق من الادعاء
 
-    const userMessage = `Claim: "${claim}"
+كن موضوعياً، واستشهد بأدلة محددة، وعبر عن عدم اليقين المناسب عند الحاجة. لا تختلق الحقائق أبداً. الرد يجب أن يكون باللغة العربية.`,
+      he: `אתה עוזר זהיר לבדיקת עובדות. נתח את הטענה והראיות שסופקו כדי לקבוע אם הטענה:
+- "Supported": הראיות תומכות בבירור בטענה
+- "Refuted": הראיות סותרות את הטענה
+- "Not Enough Info": הראיות אינן מספיקות כדי לאמת את הטענה
+
+היה אובייקטיבי, צטט ראיות ספציפיות והבע אי-ודאות מתאימה כאשר יש מקום לכך. לעולם אל תמציא עובדות. השב בעברית.`
+    };
+
+    const userMessages: Record<string, string> = {
+      en: `Claim: "${claim}"
 
 Evidence:
 ${evidence.map((e, i) => `[${i}] ${e.title}
 ${e.content}
 URL: ${e.url}`).join('\n\n')}
 
-Verify this claim and respond using the verify_claim_with_evidence function.`;
+Verify this claim and respond using the verify_claim_with_evidence function.`,
+      ar: `الادعاء: "${claim}"
+
+الأدلة:
+${evidence.map((e, i) => `[${i}] ${e.title}
+${e.content}
+الرابط: ${e.url}`).join('\n\n')}
+
+تحقق من هذا الادعاء واستجب باستخدام وظيفة verify_claim_with_evidence.`,
+      he: `טענה: "${claim}"
+
+ראיות:
+${evidence.map((e, i) => `[${i}] ${e.title}
+${e.content}
+קישור: ${e.url}`).join('\n\n')}
+
+אמת טענה זו והשב באמצעות פונקציית verify_claim_with_evidence.`
+    };
+
+    const systemPrompt = systemPrompts[language] || systemPrompts.en;
+    const userMessage = userMessages[language] || userMessages.en;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
