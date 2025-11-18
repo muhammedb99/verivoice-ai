@@ -13,8 +13,8 @@ interface WikiSearchResult {
 }
 
 // Tool: Search Wikipedia
-async function searchWikipedia(query: string, limit = 5): Promise<WikiSearchResult[]> {
-  const url = new URL('https://en.wikipedia.org/w/api.php');
+async function searchWikipedia(query: string, language = 'en', limit = 5): Promise<WikiSearchResult[]> {
+  const url = new URL(`https://${language}.wikipedia.org/w/api.php`);
   url.searchParams.set('action', 'query');
   url.searchParams.set('list', 'search');
   url.searchParams.set('srsearch', query);
@@ -29,8 +29,8 @@ async function searchWikipedia(query: string, limit = 5): Promise<WikiSearchResu
 }
 
 // Tool: Get Wikipedia page content
-async function getWikipediaContent(pageId: number): Promise<string> {
-  const url = new URL('https://en.wikipedia.org/w/api.php');
+async function getWikipediaContent(pageId: number, language = 'en'): Promise<string> {
+  const url = new URL(`https://${language}.wikipedia.org/w/api.php`);
   url.searchParams.set('action', 'query');
   url.searchParams.set('pageids', pageId.toString());
   url.searchParams.set('prop', 'extracts');
@@ -56,25 +56,25 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    const { claim } = await req.json();
+    const { claim, language = 'en' } = await req.json();
     if (!claim) {
       throw new Error('No claim provided');
     }
 
-    console.log('Verifying claim:', claim);
+    console.log('Verifying claim:', claim, 'Language:', language);
 
     // Step 1: Search Wikipedia for relevant articles
-    const searchResults = await searchWikipedia(claim, 3);
+    const searchResults = await searchWikipedia(claim, language, 3);
     console.log(`Found ${searchResults.length} Wikipedia articles`);
 
     // Step 2: Retrieve content from top results
     const evidencePromises = searchResults.slice(0, 3).map(async (result) => {
-      const content = await getWikipediaContent(result.pageid);
+      const content = await getWikipediaContent(result.pageid, language);
       return {
         title: result.title,
         snippet: result.snippet.replace(/<[^>]*>/g, ''), // Remove HTML tags
         content: content.substring(0, 1000), // Limit content length
-        url: `https://en.wikipedia.org/?curid=${result.pageid}`,
+        url: `https://${language}.wikipedia.org/?curid=${result.pageid}`,
       };
     });
 
