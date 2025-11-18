@@ -199,7 +199,48 @@ ${e.content}
       throw new Error('No tool call in AI response');
     }
 
-    const verification = JSON.parse(toolCall.function.arguments);
+    let verification = JSON.parse(toolCall.function.arguments);
+
+    // If non-English language selected, translate the explanation
+    if (language !== 'en' && verification?.explanation) {
+      try {
+        const translationSystemPrompts: Record<string, string> = {
+          ar: 'أنت مساعد ترجمة. ترجم النص التالي إلى العربية بلغة طبيعية ومختصرة بدون أي شروحات إضافية أو نصوص أخرى. أعد النص المترجم فقط.',
+          he: 'אתה עוזר תרגום. תרגם את הטקסט הבא לעברית בשפה טבעית ותמציתית ללא שום הסברים נוספים או טקסט נוסף. החזר רק את הטקסט המתורגם.'
+        };
+
+        const translationPrompt = translationSystemPrompts[language];
+
+        if (translationPrompt) {
+          const translationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash-lite',
+              messages: [
+                { role: 'system', content: translationPrompt },
+                { role: 'user', content: verification.explanation },
+              ],
+            }),
+          });
+
+          if (translationResponse.ok) {
+            const translationResult = await translationResponse.json();
+            const translatedExplanation = translationResult.choices?.[0]?.message?.content;
+            if (typeof translatedExplanation === 'string' && translatedExplanation.trim()) {
+              verification.explanation = translatedExplanation.trim();
+            }
+          } else {
+            console.error('Translation request failed with status', translationResponse.status);
+          }
+        }
+      } catch (translationError) {
+        console.error('Error translating explanation:', translationError);
+      }
+    }
 
     // Map citations to actual evidence
     const citations = verification.relevant_citations.map((index: number) => {
