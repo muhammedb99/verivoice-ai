@@ -58,7 +58,7 @@ const Index = () => {
 
       // Step 2: Verify claim
       const { data: verificationData, error: verifyError } = await supabase.functions.invoke('verify-claim', {
-        body: { claim: text },
+        body: { claim: text, language },
       });
 
       if (verifyError) {
@@ -88,7 +88,7 @@ const Index = () => {
 
     try {
       const { data: verificationData, error: verifyError } = await supabase.functions.invoke('verify-claim', {
-        body: { claim: textInput },
+        body: { claim: textInput, language },
       });
 
       if (verifyError) {
