@@ -6,6 +6,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Process base64 in chunks to prevent memory issues
+function processBase64Chunks(base64String: string, chunkSize = 32768) {
+  const chunks: Uint8Array[] = [];
+  let position = 0;
+  
+  while (position < base64String.length) {
+    const chunk = base64String.slice(position, position + chunkSize);
+    const binaryChunk = atob(chunk);
+    const bytes = new Uint8Array(binaryChunk.length);
+    
+    for (let i = 0; i < binaryChunk.length; i++) {
+      bytes[i] = binaryChunk.charCodeAt(i);
+    }
+    
+    chunks.push(bytes);
+    position += chunkSize;
+  }
+
+  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return result;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,22 +47,24 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY not configured');
     }
 
-    const formData = await req.formData();
-    const audioFile = formData.get('audio');
-    const language = formData.get('language') || 'en';
+    const { audio, language = 'en' } = await req.json();
 
-    if (!audioFile) {
-      throw new Error('No audio file provided');
+    if (!audio) {
+      throw new Error('No audio data provided');
     }
 
     console.log('Transcribing audio:', {
-      size: audioFile instanceof File ? audioFile.size : 'unknown',
+      size: audio.length,
       language,
     });
 
+    // Process audio in chunks
+    const binaryAudio = processBase64Chunks(audio);
+    
     // Prepare form data for OpenAI
     const openaiFormData = new FormData();
-    openaiFormData.append('file', audioFile);
+    const blob = new Blob([binaryAudio], { type: 'audio/webm' });
+    openaiFormData.append('file', blob, 'audio.webm');
     openaiFormData.append('model', 'whisper-1');
     openaiFormData.append('language', language);
     openaiFormData.append('response_format', 'json');

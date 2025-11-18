@@ -38,19 +38,15 @@ const Index = () => {
   const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
 
-  const handleVoiceData = async (audioBlob: Blob) => {
-    console.log("Processing voice data:", audioBlob.size, "bytes");
+  const handleVoiceData = async (base64Audio: string) => {
+    console.log("Processing voice data:", base64Audio.length, "characters");
     setIsProcessing(true);
     const startTime = Date.now();
 
     try {
       // Step 1: Transcribe audio
-      const formData = new FormData();
-      formData.append('audio', audioBlob);
-      formData.append('language', language);
-
       const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('transcribe', {
-        body: formData,
+        body: { audio: base64Audio, language },
       });
 
       if (transcribeError) {
