@@ -5,7 +5,7 @@ import { Mic, Square, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface VoiceRecorderProps {
-  onVoiceData: (audioBlob: Blob) => void;
+  onVoiceData: (base64Audio: string) => void;
   isProcessing: boolean;
   language: string;
 }
@@ -71,9 +71,18 @@ export const VoiceRecorder = ({ onVoiceData, isProcessing, language }: VoiceReco
         }
       };
 
-      mediaRecorderRef.current.onstop = () => {
+      mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
-        onVoiceData(audioBlob);
+        
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string;
+          const base64Data = base64Audio.split(',')[1];
+          onVoiceData(base64Data);
+        };
+        reader.readAsDataURL(audioBlob);
+        
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -108,8 +117,16 @@ export const VoiceRecorder = ({ onVoiceData, isProcessing, language }: VoiceReco
         toast.error("File too large (max 10MB)");
         return;
       }
-      onVoiceData(file);
-      toast.success("Audio file uploaded");
+      
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result as string;
+        const base64Data = base64Audio.split(',')[1];
+        onVoiceData(base64Data);
+        toast.success("Audio file uploaded");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
