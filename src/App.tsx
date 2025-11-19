@@ -13,15 +13,7 @@ const queryClient = new QueryClient();
 const App = () => {
   const [hasAccess, setHasAccess] = useState(false);
 
-  useEffect(() => {
-    const accessGranted = localStorage.getItem("smile_access_granted");
-    if (accessGranted === "true") {
-      setHasAccess(true);
-    }
-  }, []);
-
   const handleAccessGranted = () => {
-    localStorage.setItem("smile_access_granted", "true");
     setHasAccess(true);
   };
 
