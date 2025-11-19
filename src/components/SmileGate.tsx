@@ -25,16 +25,34 @@ export const SmileGate = ({ onAccessGranted }: SmileGateProps) => {
 
   const startCamera = async () => {
     try {
+      console.log("Requesting camera access...");
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: 640, height: 480 }
       });
+      console.log("Camera access granted, stream:", mediaStream);
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
+        console.log("Video started playing");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Camera access error:", error);
-      toast.error("Unable to access camera. Please allow camera permissions.");
+      let errorMessage = "Unable to access camera. ";
+      
+      if (error.name === "NotAllowedError") {
+        errorMessage += "Please allow camera permissions in your browser settings.";
+      } else if (error.name === "NotFoundError") {
+        errorMessage += "No camera found on your device.";
+      } else if (error.name === "NotReadableError") {
+        errorMessage += "Camera is already in use by another application.";
+      } else if (error.name === "OverconstrainedError") {
+        errorMessage += "Camera doesn't support the required settings.";
+      } else {
+        errorMessage += `Error: ${error.message || "Unknown error"}`;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
